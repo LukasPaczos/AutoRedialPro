@@ -1,14 +1,18 @@
 package com.lukaspaczos.autoredialpro;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.IntDef;
+import android.support.v4.app.ActivityCompat;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
@@ -42,15 +46,18 @@ public class RedialService extends Service {
   private int serviceState;
 
   private final Handler handler = new Handler();
-  private final TelephonyManager telephonyManager;
-  private final RedialNotificationManager redialNotificationManager;
+  private TelephonyManager telephonyManager;
+  private RedialNotificationManager redialNotificationManager;
 
   private String number;
   private int loops;
   private int currentLoop;
   private long delay; //in ms
 
-  public RedialService() {
+  @Override
+  public void onCreate() {
+    super.onCreate();
+
     telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
     redialNotificationManager = new RedialNotificationManager(this);
   }
@@ -69,6 +76,7 @@ public class RedialService extends Service {
       startForeground(1, redialNotificationManager.getNotification());
 
       telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+      handler.post(callRunnable);
     } else if (intent.getAction().equals(ACTION_BUTTON)) {
       @RedialServiceState int requestedState = intent.getIntExtra(PARAM_REQUESTED_STATE, -1);
       switch (requestedState) {
@@ -88,10 +96,12 @@ public class RedialService extends Service {
   }
 
   private final Runnable callRunnable = new Runnable() {
+    @SuppressLint("MissingPermission")
     @Override
     public void run() {
       Intent intent = new Intent(Intent.ACTION_CALL);
       intent.setData(Uri.parse("tel:" + number));
+      intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
       RedialService.this.startActivity(intent);
     }
   };
@@ -101,7 +111,7 @@ public class RedialService extends Service {
     public void onCallStateChanged(int state, String incomingNumber) {
       switch (state) {
         case TelephonyManager.CALL_STATE_IDLE:
-
+          resume();
           break;
 
         case TelephonyManager.CALL_STATE_OFFHOOK:

@@ -1,9 +1,13 @@
 package com.lukaspaczos.autoredialpro;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
@@ -35,13 +39,11 @@ public class MainActivity extends AppCompatActivity {
     inputButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
-        Intent intent = new Intent(MainActivity.this, RedialService.class);
-        intent.setAction(RedialService.ACTION_NEW_DATA);
-        intent.putExtra(RedialService.PARAM_NUMBER, inputPhone.getText().toString());
-        intent.putExtra(RedialService.PARAM_LOOPS, (String) inputTimes.getSelectedItem());
-        String delayString = (String) inputDelay.getSelectedItem();
-        delayString = delayString.substring(0, delayString.length() - 1);
-        intent.putExtra(RedialService.PARAM_DELAY, Long.valueOf(delayString) * 1000);
+        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+          ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CALL_PHONE}, 1);
+          return;
+        }
+        startService();
       }
     });
 
@@ -53,6 +55,29 @@ public class MainActivity extends AppCompatActivity {
           .setAction("Action", null).show();
       }
     });
+  }
+
+  private void startService() {
+    Intent intent = new Intent(MainActivity.this, RedialService.class);
+    intent.setAction(RedialService.ACTION_NEW_DATA);
+    intent.putExtra(RedialService.PARAM_NUMBER, inputPhone.getText().toString());
+    intent.putExtra(RedialService.PARAM_LOOPS, Integer.valueOf((String) inputTimes.getSelectedItem()));
+    String delayString = (String) inputDelay.getSelectedItem();
+    delayString = delayString.substring(0, delayString.length() - 1);
+    intent.putExtra(RedialService.PARAM_DELAY, Long.valueOf(delayString) * 1000);
+    startService(intent);
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+    for (int result : grantResults) {
+      if (result == PackageManager.PERMISSION_DENIED)
+        finish();
+    }
+
+    startService();
   }
 
   @Override
@@ -76,4 +101,6 @@ public class MainActivity extends AppCompatActivity {
 
     return super.onOptionsItemSelected(item);
   }
+
+
 }
