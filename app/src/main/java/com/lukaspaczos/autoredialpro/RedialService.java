@@ -18,9 +18,14 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 public class RedialService extends Service {
 
+  public static final String ACTION_NEW_DATA = "action_new_data";
+  public static final String ACTION_BUTTON = "action_button";
+
   public static final String PARAM_NUMBER = "param_number";
   public static final String PARAM_LOOPS = "param_loops";
   public static final String PARAM_DELAY = "param_delay";
+
+  public static final String PARAM_REQUESTED_STATE = "param_requested_state";
 
   private final ServiceBinder binder = new ServiceBinder();
 
@@ -52,17 +57,33 @@ public class RedialService extends Service {
 
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
-    clear();
-    Bundle bundle = intent.getExtras();
-    if (bundle != null) {
-      number = bundle.getString(PARAM_NUMBER);
-      loops = bundle.getInt(PARAM_LOOPS);
-      delay = bundle.getLong(PARAM_DELAY);
+    if (intent.getAction().equals(ACTION_NEW_DATA)) {
+      clear();
+      Bundle bundle = intent.getExtras();
+      if (bundle != null) {
+        number = bundle.getString(PARAM_NUMBER);
+        loops = bundle.getInt(PARAM_LOOPS);
+        delay = bundle.getLong(PARAM_DELAY);
+      }
+
+      startForeground(1, redialNotificationManager.getNotification());
+
+      telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+    } else if (intent.getAction().equals(ACTION_BUTTON)) {
+      @RedialServiceState int requestedState = intent.getIntExtra(PARAM_REQUESTED_STATE, -1);
+      switch (requestedState) {
+        case SERVICE_STATE_REPEATING:
+          resume();
+          break;
+        case SERVICE_STATE_PAUSED:
+          pause();
+          break;
+        case SERVICE_STATE_STOPPED:
+          stop();
+          break;
+      }
     }
 
-    startForeground(1, redialNotificationManager.getNotification());
-
-    telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
     return START_NOT_STICKY;
   }
 
@@ -95,20 +116,20 @@ public class RedialService extends Service {
   };
 
   private void pause() {
-    // TODO: 28/12/2017 update button
     serviceState = SERVICE_STATE_PAUSED;
+    redialNotificationManager.pause();
     handler.removeCallbacksAndMessages(null);
   }
 
   private void resume() {
     serviceState = SERVICE_STATE_REPEATING;
-    // TODO: 28/12/2017 update button
+    redialNotificationManager.resume();
     handler.postDelayed(callRunnable, delay);
   }
 
   private void stop() {
     telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
-    handler.removeCallbacksAndMessages(null);
+    clear();
     stopSelf();
   }
 
@@ -127,6 +148,10 @@ public class RedialService extends Service {
     RedialService getService() {
       return RedialService.this;
     }
+  }
+
+  public int getServiceState() {
+    return serviceState;
   }
 
   public String getNumber() {
