@@ -1,4 +1,20 @@
 <resources>
     <string name="app_name">Auto Redial Pro</string>
     <string name="action_settings">Settings</string>
+
+    <string-array name="spinner_times">
+        <item>5</item>
+        <item>10</item>
+        <item>25</item>
+        <item>50</item>
+        <item>100</item>
+        <item>500</item>
+    </string-array>
+
+    <string-array name="spinner_delay">
+        <item>5s</item>
+        <item>10s</item>
+        <item>30s</item>
+        <item>60s</item>
+    </string-array>
 </resources>
